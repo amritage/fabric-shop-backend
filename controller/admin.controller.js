@@ -12,6 +12,18 @@ const { secret } = require('../config/secret');
 // register
 const registerAdmin = async (req, res, next) => {
   try {
+    const { email } = req.body;
+    const emailDomain = email.split('@')[1];
+    const allowedDomains = secret.allowed_email_domains
+      ? secret.allowed_email_domains.split(',')
+      : [];
+
+    if (allowedDomains.length > 0 && !allowedDomains.includes(emailDomain)) {
+      return res.status(403).send({
+        message: 'Email domain is not allowed!',
+      });
+    }
+
     const isAdded = await Admin.findOne({ email: req.body.email });
     if (isAdded) {
       return res.status(403).send({
@@ -41,20 +53,33 @@ const registerAdmin = async (req, res, next) => {
 };
 // login admin
 const loginAdmin = async (req, res, next) => {
-  // console.log(req.body)
   try {
     const admin = await Admin.findOne({ email: req.body.email });
-    // console.log(admin)
     if (admin && bcrypt.compareSync(req.body.password, admin.password)) {
-      const token = generateToken(admin);
-      res.send({
-        token,
-        _id: admin._id,
-        name: admin.name,
-        phone: admin.phone,
+      const otp = Math.floor(100000 + Math.random() * 900000);
+      admin.otp = otp;
+      admin.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      await admin.save();
+
+      const body = {
+        from: secret.email_user,
+        to: `${admin.email}`,
+        subject: 'Your OTP for Login',
+        html: `<h2>Hello ${admin.name}</h2>
+        <p>Your OTP for logging into your <strong>Shofy</strong> account is:</p>
+        <h1 style="font-size: 48px; margin: 20px 0;">${otp}</h1>
+        <p>This OTP will expire in <strong>10 minutes</strong>.</p>
+        <p style="margin-top: 35px;">If you did not initiate this request, please contact us immediately at support@shofy.com</p>
+        <p style="margin-bottom:0px;">Thank you</p>
+        <strong>Shofy Team</strong>
+        `,
+      };
+
+      await sendEmail(body);
+
+      res.status(200).send({
+        message: 'OTP sent to your email. Please verify to login.',
         email: admin.email,
-        image: admin.image,
-        role: admin.role,
       });
     } else {
       res.status(401).send({
@@ -312,9 +337,46 @@ const updatedStatus = async (req, res) => {
   }
 };
 
+const loginWithOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    const admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      return res.status(404).send({
+        message: 'Admin not found!',
+      });
+    }
+
+    if (admin.otp !== otp || admin.otpExpires < Date.now()) {
+      return res.status(401).send({
+        message: 'Invalid or expired OTP!',
+      });
+    }
+
+    const token = generateToken(admin);
+    admin.otp = undefined;
+    admin.otpExpires = undefined;
+    await admin.save();
+
+    res.send({
+      token,
+      _id: admin._id,
+      name: admin.name,
+      phone: admin.phone,
+      email: admin.email,
+      image: admin.image,
+      role: admin.role,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   registerAdmin,
   loginAdmin,
+  loginWithOtp,
   forgetPassword,
   resetPassword,
   addStaff,

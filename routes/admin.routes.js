@@ -12,6 +12,7 @@ const {
   forgetPassword,
   confirmAdminEmail,
   confirmAdminForgetPass,
+  loginWithOtp,
 } = require('../controller/admin.controller');
 
 //register a staff
@@ -19,6 +20,9 @@ router.post('/register', registerAdmin);
 
 //login a admin
 router.post('/login', loginAdmin);
+
+//login with otp
+router.post('/login-with-otp', loginWithOtp);
 
 //login a admin
 router.patch('/change-password', changePassword);

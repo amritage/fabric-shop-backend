@@ -57,6 +57,8 @@ const adminSchema = new mongoose.Schema(
     },
     confirmationToken: String,
     confirmationTokenExpires: Date,
+    otp: Number,
+    otpExpires: Date,
   },
   {
     timestamps: true,

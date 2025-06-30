@@ -24,4 +24,5 @@ module.exports.secret = {
   stripe_key: process.env.STRIPE_KEY,
   client_url: process.env.STORE_URL,
   admin_url: process.env.ADMIN_URL,
+  allowed_email_domains: process.env.ALLOWED_EMAIL_DOMAINS,
 };
