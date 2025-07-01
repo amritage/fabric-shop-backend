@@ -3,7 +3,7 @@ const NewCategoryModel = require('../model/newcategorydata');
 // Utility to generate full image URL
 const getImageUrl = (filename) => {
   const BASE_URL = process.env.BASE_URL || 'http://localhost:7000';
- 
+
   return `${BASE_URL}/uploadimage/${filename}`;
 };
 

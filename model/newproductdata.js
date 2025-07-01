@@ -11,12 +11,12 @@ function maxKeywordsString(val) {
 const NewProductSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, unique: true },
-    productdescription:{type: String,required:true},
-    
-    popularproduct:{type: String,required:true},   // new added
-    productoffer:{type: String,required:true},
-    topratedproduct:{type: String,required:true},
-    
+    productdescription: { type: String, required: true },
+
+    popularproduct: { type: String, required: true }, // new added
+    productoffer: { type: String, required: true },
+    topratedproduct: { type: String, required: true },
+
     newCategoryId: {
       type: Schema.Types.ObjectId,
       ref: 'newcategorydata',

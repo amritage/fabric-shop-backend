@@ -135,5 +135,4 @@ router.get('/popular', newProductController.getPopularProducts);
 router.get('/offers', newProductController.getProductOffers);
 router.get('/toprated', newProductController.getTopRatedProducts);
 
-
 module.exports = router;
