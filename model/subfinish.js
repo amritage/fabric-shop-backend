@@ -13,6 +13,15 @@ const SubfinishSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'FinishData',
       required: true,
+      validate: {
+        validator: async function (value) {
+          const exists = await mongoose
+            .model('FinishData')
+            .exists({ _id: value });
+          return exists !== null;
+        },
+        message: 'Invalid finishId: No matching FinishData found',
+      },
     },
   },
   { timestamps: true },

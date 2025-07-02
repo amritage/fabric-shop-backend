@@ -13,6 +13,15 @@ const SubSuitableSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'SuitableforData',
       required: true,
+      validate: {
+        validator: async function (value) {
+          const exists = await mongoose
+            .model('SuitableforData')
+            .exists({ _id: value });
+          return exists !== null;
+        },
+        message: 'Invalid suitableforId: No matching SuitableforData found',
+      },
     },
   },
   { timestamps: true },
