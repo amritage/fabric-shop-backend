@@ -11,7 +11,7 @@ function maxKeywordsString(val) {
 const NewProductSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, unique: true },
-    productdescription: { type: String, required: true },
+    productdescription: { type: String, required: false},
 
     popularproduct: { type: String, required: true }, // new added
     productoffer: { type: String, required: true },
@@ -191,7 +191,7 @@ const NewProductSchema = new Schema(
       default: 'width=device-width, initial-scale=1.0',
     },
     title: { type: String, required: true, trim: true, maxlength: 60 },
-    description: { type: String, required: true, trim: true, maxlength: 160 },
+    description: { type: String, required: true, trim: false, maxlength: 160 },
     keywords: {
       type: String,
       required: true,
