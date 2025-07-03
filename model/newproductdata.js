@@ -11,7 +11,7 @@ function maxKeywordsString(val) {
 const NewProductSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, unique: true },
-    productdescription: { type: String, required: false},
+    productdescription: { type: String, required: false },
 
     popularproduct: { type: String, required: true }, // new added
     productoffer: { type: String, required: true },
@@ -50,6 +50,21 @@ const NewProductSchema = new Schema(
         message: 'Invalid structureId: No matching StructureData found',
       },
     },
+    substructureId: {
+      type: Schema.Types.ObjectId,
+      ref: 'SubstructureData',
+      required: false,
+      validate: {
+        validator: async function (value) {
+          if (!value) return true;
+          const exists = await mongoose
+            .model('SubstructureData')
+            .exists({ _id: value });
+          return exists !== null;
+        },
+        message: 'Invalid substructureId: No matching SubstructureData found',
+      },
+    },
     contentId: {
       type: Schema.Types.ObjectId,
       ref: 'ContentData',
@@ -84,6 +99,21 @@ const NewProductSchema = new Schema(
           return exists !== null;
         },
         message: 'Invalid finishId: No matching FinishData found',
+      },
+    },
+    subfinishId: {
+      type: Schema.Types.ObjectId,
+      ref: 'SubfinishData',
+      required: false,
+      validate: {
+        validator: async function (value) {
+          if (!value) return true;
+          const exists = await mongoose
+            .model('SubfinishData')
+            .exists({ _id: value });
+          return exists !== null;
+        },
+        message: 'Invalid subfinishId: No matching SubfinishData found',
       },
     },
     designId: {
@@ -141,6 +171,21 @@ const NewProductSchema = new Schema(
           return exists !== null;
         },
         message: 'Invalid suitableforId: No matching SuitableforData found',
+      },
+    },
+    subsuitableId: {
+      type: Schema.Types.ObjectId,
+      ref: 'SubsuitableData',
+      required: false,
+      validate: {
+        validator: async function (value) {
+          if (!value) return true;
+          const exists = await mongoose
+            .model('SubsuitableData')
+            .exists({ _id: value });
+          return exists !== null;
+        },
+        message: 'Invalid subsuitableId: No matching SubsuitableData found',
       },
     },
     vendorId: {

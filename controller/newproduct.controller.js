@@ -1,11 +1,21 @@
 const NewProductModel = require('../model/newproductdata');
 const { cloudinaryServices } = require('../services/cloudinary.service');
+const NewCategoryModel = require('../model/newcategorydata');
+const slugify = require('slugify');
+
+function stripCloudinaryVersion(url) {
+  return url ? url.replace(/\/v\d+\//, '/') : url;
+}
 
 // Helper to upload a file buffer to Cloudinary and return the URL
-async function uploadToCloudinary(file) {
+async function uploadToCloudinary(file, folder) {
   if (!file) return null;
-  const result = await cloudinaryServices.cloudinaryImageUpload(file.buffer);
-  return result.secure_url;
+  const result = await cloudinaryServices.cloudinaryImageUpload(
+    file.buffer,
+    file.originalname,
+    folder,
+  );
+  return stripCloudinaryVersion(result.secure_url);
 }
 
 // CREATE
@@ -13,19 +23,38 @@ exports.addProduct = async (req, res, next) => {
   try {
     const files = req.files || {};
 
+    // Determine folder name based on newCategoryId
+    let folderName = 'product';
+    console.log('newCategoryId:', req.body.newCategoryId);
+    if (req.body.newCategoryId) {
+      try {
+        const category = await NewCategoryModel.findById(
+          req.body.newCategoryId,
+        );
+        console.log('Fetched category:', category);
+        if (category && category.name) {
+          folderName = slugify(category.name, { lower: true, strict: true });
+          console.log('Using folder:', folderName);
+        }
+      } catch (err) {
+        console.log('Category fetch error:', err);
+        // fallback to 'product'
+      }
+    }
+
     // Upload images/videos to Cloudinary
     const imageUrl = files.image
-      ? await uploadToCloudinary(files.image[0])
-      : req.body.image || null;
+      ? await uploadToCloudinary(files.image[0], folderName)
+      : stripCloudinaryVersion(req.body.image) || null;
     const image1Url = files.image1
-      ? await uploadToCloudinary(files.image1[0])
-      : req.body.image1 || null;
+      ? await uploadToCloudinary(files.image1[0], folderName)
+      : stripCloudinaryVersion(req.body.image1) || null;
     const image2Url = files.image2
-      ? await uploadToCloudinary(files.image2[0])
-      : req.body.image2 || null;
+      ? await uploadToCloudinary(files.image2[0], folderName)
+      : stripCloudinaryVersion(req.body.image2) || null;
     const videoUrl = files.video
-      ? await uploadToCloudinary(files.video[0])
-      : req.body.video || null;
+      ? await uploadToCloudinary(files.video[0], folderName)
+      : stripCloudinaryVersion(req.body.video) || null;
 
     const payload = {
       sku: req.body.sku,
@@ -93,6 +122,9 @@ exports.addProduct = async (req, res, next) => {
       salesPrice: req.body.salesPrice,
       locationCode: req.body.locationCode,
       productIdentifier: req.body.productIdentifier,
+      subsuitableId: req.body.subsuitableId,
+      subfinishId: req.body.subfinishId,
+      substructureId: req.body.substructureId,
     };
 
     const product = await NewProductModel.create(payload);
@@ -135,6 +167,25 @@ exports.updateProduct = async (req, res, next) => {
     const id =
       typeof req.params.id === 'string' ? req.params.id.trim() : req.params.id;
     const files = req.files || {};
+
+    // Determine folder name based on newCategoryId
+    let folderName = 'product';
+    console.log('newCategoryId:', req.body.newCategoryId);
+    if (req.body.newCategoryId) {
+      try {
+        const category = await NewCategoryModel.findById(
+          req.body.newCategoryId,
+        );
+        console.log('Fetched category:', category);
+        if (category && category.name) {
+          folderName = slugify(category.name, { lower: true, strict: true });
+          console.log('Using folder:', folderName);
+        }
+      } catch (err) {
+        console.log('Category fetch error:', err);
+        // fallback to 'product'
+      }
+    }
 
     // Upload images/videos to Cloudinary if present
     const updates = {
@@ -199,14 +250,21 @@ exports.updateProduct = async (req, res, next) => {
       salesPrice: req.body.salesPrice,
       locationCode: req.body.locationCode,
       productIdentifier: req.body.productIdentifier,
-      ...(files.image && { image: await uploadToCloudinary(files.image[0]) }),
+      subsuitableId: req.body.subsuitableId,
+      subfinishId: req.body.subfinishId,
+      substructureId: req.body.substructureId,
+      ...(files.image && {
+        image: await uploadToCloudinary(files.image[0], folderName),
+      }),
       ...(files.image1 && {
-        image1: await uploadToCloudinary(files.image1[0]),
+        image1: await uploadToCloudinary(files.image1[0], folderName),
       }),
       ...(files.image2 && {
-        image2: await uploadToCloudinary(files.image2[0]),
+        image2: await uploadToCloudinary(files.image2[0], folderName),
       }),
-      ...(files.video && { video: await uploadToCloudinary(files.video[0]) }),
+      ...(files.video && {
+        video: await uploadToCloudinary(files.video[0], folderName),
+      }),
     };
 
     const updated = await NewProductModel.findByIdAndUpdate(

@@ -1,10 +1,18 @@
 const NewCategoryModel = require('../model/newcategorydata');
 const { cloudinaryServices } = require('../services/cloudinary.service');
 
+function stripCloudinaryVersion(url) {
+  return url ? url.replace(/\/v\d+\//, '/') : url;
+}
+
 async function uploadToCloudinary(file) {
   if (!file) return null;
-  const result = await cloudinaryServices.cloudinaryImageUpload(file.buffer);
-  return result.secure_url;
+  const result = await cloudinaryServices.cloudinaryImageUpload(
+    file.buffer,
+    file.originalname,
+    'category',
+  );
+  return stripCloudinaryVersion(result.secure_url);
 }
 
 // POST /api/newcategory/addcategory
@@ -13,7 +21,7 @@ exports.addCategory = async (req, res) => {
   if (req.files && req.files.image) {
     imageUrl = await uploadToCloudinary(req.files.image[0]);
   } else if (req.body.image) {
-    imageUrl = req.body.image;
+    imageUrl = stripCloudinaryVersion(req.body.image);
   }
 
   try {
@@ -47,7 +55,7 @@ exports.updateCategory = async (req, res) => {
   if (req.files && req.files.image) {
     updateData.image = await uploadToCloudinary(req.files.image[0]);
   } else if (req.body.image) {
-    updateData.image = req.body.image;
+    updateData.image = stripCloudinaryVersion(req.body.image);
   }
 
   try {
