@@ -127,7 +127,7 @@ const NewProductSchema = new Schema(
             .exists({ _id: value });
           return exists !== null;
         },
-        message: 'Invalid designId: No matching DesignData found',
+        message: 'Invalid designId: No matchiing DesignData found',
       },
     },
     colorId: {
