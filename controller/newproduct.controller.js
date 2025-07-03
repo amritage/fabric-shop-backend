@@ -1,15 +1,31 @@
 const NewProductModel = require('../model/newproductdata');
+const { cloudinaryServices } = require('../services/cloudinary.service');
 
-const getMediaUrl = (filename, type) => {
-  const BASE_URL = process.env.BASE_URL || 'http://localhost:7000';
-  const path = type === 'video' ? 'uploadvideo' : 'uploadimage';
-  return `${BASE_URL}/${path}/${filename}`;
-};
+// Helper to upload a file buffer to Cloudinary and return the URL
+async function uploadToCloudinary(file) {
+  if (!file) return null;
+  const result = await cloudinaryServices.cloudinaryImageUpload(file.buffer);
+  return result.secure_url;
+}
 
 // CREATE
 exports.addProduct = async (req, res, next) => {
   try {
     const files = req.files || {};
+
+    // Upload images/videos to Cloudinary
+    const imageUrl = files.image
+      ? await uploadToCloudinary(files.image[0])
+      : req.body.image || null;
+    const image1Url = files.image1
+      ? await uploadToCloudinary(files.image1[0])
+      : req.body.image1 || null;
+    const image2Url = files.image2
+      ? await uploadToCloudinary(files.image2[0])
+      : req.body.image2 || null;
+    const videoUrl = files.video
+      ? await uploadToCloudinary(files.video[0])
+      : req.body.video || null;
 
     const payload = {
       sku: req.body.sku,
@@ -20,20 +36,10 @@ exports.addProduct = async (req, res, next) => {
       popularproduct: req.body.popularproduct,
       productoffer: req.body.productoffer,
       topratedproduct: req.body.topratedproduct,
-
-      image: files.image
-        ? getMediaUrl(files.image[0].filename, 'image')
-        : req.body.image || null,
-      image1: files.image1
-        ? getMediaUrl(files.image1[0].filename, 'image')
-        : req.body.image1 || null,
-      image2: files.image2
-        ? getMediaUrl(files.image2[0].filename, 'image')
-        : req.body.image2 || null,
-      video: files.video
-        ? getMediaUrl(files.video[0].filename, 'video')
-        : req.body.video || null,
-
+      image: imageUrl,
+      image1: image1Url,
+      image2: image2Url,
+      video: videoUrl,
       structureId: req.body.structureId,
       contentId: req.body.contentId,
       gsm: req.body.gsm,
@@ -50,7 +56,7 @@ exports.addProduct = async (req, res, next) => {
       motifsizeId: req.body.motifsizeId,
       suitableforId: req.body.suitableforId,
       vendorId: req.body.vendorId,
-      groupcodeId: req.body.groupcodeId, // ✅ updated
+      groupcodeId: req.body.groupcodeId,
       charset: req.body.charset,
       xUaCompatible: req.body.xUaCompatible,
       viewport: req.body.viewport,
@@ -130,12 +136,13 @@ exports.updateProduct = async (req, res, next) => {
       typeof req.params.id === 'string' ? req.params.id.trim() : req.params.id;
     const files = req.files || {};
 
+    // Upload images/videos to Cloudinary if present
     const updates = {
       sku: req.body.sku,
       slug: req.body.slug,
       name: req.body.name,
       newCategoryId: req.body.newCategoryId,
-      productdescription: req.body.productdescription, // new added product description
+      productdescription: req.body.productdescription,
       popularproduct: req.body.popularproduct,
       productoffer: req.body.productoffer,
       topratedproduct: req.body.topratedproduct,
@@ -155,20 +162,7 @@ exports.updateProduct = async (req, res, next) => {
       motifsizeId: req.body.motifsizeId,
       suitableforId: req.body.suitableforId,
       vendorId: req.body.vendorId,
-      groupcodeId: req.body.groupcodeId, // ✅ updated
-      ...(files.image && {
-        image: getMediaUrl(files.image[0].filename, 'image'),
-      }),
-      ...(files.image1 && {
-        image1: getMediaUrl(files.image1[0].filename, 'image'),
-      }),
-      ...(files.image2 && {
-        image2: getMediaUrl(files.image2[0].filename, 'image'),
-      }),
-      ...(files.video && {
-        video: getMediaUrl(files.video[0].filename, 'video'),
-      }),
-
+      groupcodeId: req.body.groupcodeId,
       charset: req.body.charset,
       xUaCompatible: req.body.xUaCompatible,
       viewport: req.body.viewport,
@@ -205,16 +199,25 @@ exports.updateProduct = async (req, res, next) => {
       salesPrice: req.body.salesPrice,
       locationCode: req.body.locationCode,
       productIdentifier: req.body.productIdentifier,
+      ...(files.image && { image: await uploadToCloudinary(files.image[0]) }),
+      ...(files.image1 && {
+        image1: await uploadToCloudinary(files.image1[0]),
+      }),
+      ...(files.image2 && {
+        image2: await uploadToCloudinary(files.image2[0]),
+      }),
+      ...(files.video && { video: await uploadToCloudinary(files.video[0]) }),
     };
 
-    const updated = await NewProductModel.findByIdAndUpdate(id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    const updated = await NewProductModel.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true, runValidators: true },
+    );
     if (!updated) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    res.status(200).json({ status: 1, data: updated });
+    res.status(200).json(updated);
   } catch (error) {
     console.error('Error updating product:', error);
     next(error);

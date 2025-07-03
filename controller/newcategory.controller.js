@@ -1,17 +1,19 @@
 const NewCategoryModel = require('../model/newcategorydata');
+const { cloudinaryServices } = require('../services/cloudinary.service');
 
-// Utility to generate full image URL
-const getImageUrl = (filename) => {
-  const BASE_URL = process.env.BASE_URL || 'http://localhost:7000';
-
-  return `${BASE_URL}/uploadimage/${filename}`;
-};
+async function uploadToCloudinary(file) {
+  if (!file) return null;
+  const result = await cloudinaryServices.cloudinaryImageUpload(file.buffer);
+  return result.secure_url;
+}
 
 // POST /api/newcategory/addcategory
 exports.addCategory = async (req, res) => {
   let imageUrl = null;
   if (req.files && req.files.image) {
-    imageUrl = getImageUrl(req.files.image[0].filename);
+    imageUrl = await uploadToCloudinary(req.files.image[0]);
+  } else if (req.body.image) {
+    imageUrl = req.body.image;
   }
 
   try {
@@ -42,9 +44,10 @@ exports.updateCategory = async (req, res) => {
   const id = req.params.categoryid.trim();
   const updateData = { name: req.body.name };
 
-  // If a new image was uploaded, include it with full URL
   if (req.files && req.files.image) {
-    updateData.image = getImageUrl(req.files.image[0].filename);
+    updateData.image = await uploadToCloudinary(req.files.image[0]);
+  } else if (req.body.image) {
+    updateData.image = req.body.image;
   }
 
   try {

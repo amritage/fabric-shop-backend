@@ -18,63 +18,15 @@ const allowedVideoMimeTypes = (process.env.ALLOWED_VIDEO_TYPES || '')
   .split(',')
   .map((type) => type.trim());
 
-// ⬇️ Multer Storage Setup
-const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    if (file.fieldname === 'video') {
-      cb(null, videoUploadPath);
-    } else {
-      cb(null, imageUploadPath);
-    }
-  },
-  filename(req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, `${file.fieldname}_${Date.now()}${ext}`);
-  },
-});
-
-// ⬇️ MIME Type Filter
-const fileFilter = (req, file, cb) => {
-  if (file.fieldname.startsWith('image')) {
-    if (allowedImageMimeTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(
-        new Error(
-          `Invalid image format. Allowed: ${allowedImageMimeTypes.join(', ')}`,
-        ),
-        false,
-      );
-    }
-  } else if (file.fieldname === 'video') {
-    if (allowedVideoMimeTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(
-        new Error(
-          `Invalid video format. Allowed: ${allowedVideoMimeTypes.join(', ')}`,
-        ),
-        false,
-      );
-    }
-  } else {
-    cb(null, true); // For non-media fields
-  }
-};
-
-// ⬇️ Multer Instance
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-}).fields([
+// Use memory storage for multer
+const upload = multer({ storage: multer.memoryStorage() }).fields([
   { name: 'image', maxCount: 1 },
   { name: 'image1', maxCount: 1 },
   { name: 'image2', maxCount: 1 },
   { name: 'video', maxCount: 1 },
 ]);
 
-// ⬇️ Middleware Wrapper for Error Handling
+// Middleware for error handling
 const handleMulterUpload = (req, res, next) => {
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError || err) {
