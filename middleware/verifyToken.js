@@ -25,6 +25,7 @@ module.exports = async (req, res, next) => {
       });
     }
     const decoded = await promisify(jwt.verify)(token, secret.token_secret);
+    // If expired, this throws an error and the user is not authenticated
     req.user = decoded;
     next();
   } catch (error) {
