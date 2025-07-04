@@ -76,6 +76,10 @@ app.use('/api/subsuitable', require('./routes/subsuitable.routes'));
 app.use('/api/newproduct', require('./routes/newproduct.routes'));
 app.use('/api/groupcode', require('./routes/groupcode.routes'));
 
+// Login OTP routes
+const loginOtpRoutes = require('./routes/loginotp.routes');
+app.use('/api/loginotp', loginOtpRoutes);
+
 // Root route
 app.get('/', (req, res) => {
   res.send('Apps worked successfully');

@@ -342,11 +342,25 @@ exports.updateProduct = async (req, res, next) => {
       updates.image2 = stripCloudinaryVersion(req.body.image2);
     }
 
+    // Video update: always use AV1 eager transformation URL if available
     if (files.video) {
       if (currentProduct.video) {
         oldImagesToDelete.push(currentProduct.video);
       }
-      updates.video = await uploadToCloudinary(files.video[0], folderName);
+      const videoResult = await uploadToCloudinary(files.video[0], folderName);
+      if (
+        videoResult &&
+        videoResult.eager &&
+        videoResult.eager.length > 0 &&
+        videoResult.eager[0].secure_url &&
+        videoResult.eager[0].secure_url.includes('/vc_av1/')
+      ) {
+        updates.video = videoResult.eager[0].secure_url;
+      } else if (videoResult && videoResult.secure_url) {
+        updates.video = videoResult.secure_url;
+      } else {
+        updates.video = videoResult;
+      }
     } else if (req.body.video) {
       updates.video = stripCloudinaryVersion(req.body.video);
     }
