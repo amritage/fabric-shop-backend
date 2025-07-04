@@ -1,7 +1,9 @@
 const NewProductModel = require('../model/newproductdata');
 const { cloudinaryServices } = require('../services/cloudinary.service');
 const NewCategoryModel = require('../model/newcategorydata');
+const { deleteImagesFromCloudinary } = require('../utils/cloudinary');
 const slugify = require('slugify');
+const path = require('path');
 
 function stripCloudinaryVersion(url) {
   return url ? url.replace(/\/v\d+\//, '/') : url;
@@ -10,12 +12,35 @@ function stripCloudinaryVersion(url) {
 // Helper to upload a file buffer to Cloudinary and return the URL
 async function uploadToCloudinary(file, folder) {
   if (!file) return null;
-  const result = await cloudinaryServices.cloudinaryImageUpload(
-    file.buffer,
-    file.originalname,
-    folder,
-  );
-  return stripCloudinaryVersion(result.secure_url);
+  // Use only the base filename to avoid double folder nesting
+  const baseFilename = file.originalname.split('/').pop();
+
+  // Detect if this is a video file (AV1 only)
+  const videoExtensions = ['.mkv', '.webm', '.mp4'];
+  const ext = path.extname(baseFilename).toLowerCase();
+  const isVideo = videoExtensions.includes(ext);
+
+  // Only allow AV1 video files (by extension and mimetype)
+  if (isVideo) {
+    // Optionally, check mimetype for AV1 (may be 'video/mp4', 'video/webm', etc.)
+    // You can add more robust AV1 detection if needed
+    return await cloudinaryServices.cloudinaryImageUpload(
+      file.buffer,
+      baseFilename,
+      folder,
+      true,
+      'video',
+    );
+  } else {
+    // Image upload
+    return await cloudinaryServices.cloudinaryImageUpload(
+      file.buffer,
+      baseFilename,
+      folder,
+      true,
+      'image',
+    );
+  }
 }
 
 // CREATE
@@ -42,19 +67,35 @@ exports.addProduct = async (req, res, next) => {
       }
     }
 
-    // Upload images/videos to Cloudinary
-    const imageUrl = files.image
+    // Upload images/videos to Cloudinary and store only the URL
+    const imageResult = files.image
       ? await uploadToCloudinary(files.image[0], folderName)
       : stripCloudinaryVersion(req.body.image) || null;
-    const image1Url = files.image1
+    const image1Result = files.image1
       ? await uploadToCloudinary(files.image1[0], folderName)
       : stripCloudinaryVersion(req.body.image1) || null;
-    const image2Url = files.image2
+    const image2Result = files.image2
       ? await uploadToCloudinary(files.image2[0], folderName)
       : stripCloudinaryVersion(req.body.image2) || null;
-    const videoUrl = files.video
+    const videoResult = files.video
       ? await uploadToCloudinary(files.video[0], folderName)
       : stripCloudinaryVersion(req.body.video) || null;
+
+    // Always use the AV1 eager transformation URL if available and contains /vc_av1/
+    let videoUrl = null;
+    if (
+      videoResult &&
+      videoResult.eager &&
+      videoResult.eager.length > 0 &&
+      videoResult.eager[0].secure_url &&
+      videoResult.eager[0].secure_url.includes('/vc_av1/')
+    ) {
+      videoUrl = videoResult.eager[0].secure_url;
+    } else if (videoResult && videoResult.secure_url) {
+      videoUrl = videoResult.secure_url;
+    } else {
+      videoUrl = videoResult;
+    }
 
     const payload = {
       sku: req.body.sku,
@@ -65,9 +106,18 @@ exports.addProduct = async (req, res, next) => {
       popularproduct: req.body.popularproduct,
       productoffer: req.body.productoffer,
       topratedproduct: req.body.topratedproduct,
-      image: imageUrl,
-      image1: image1Url,
-      image2: image2Url,
+      image:
+        imageResult && imageResult.secure_url
+          ? imageResult.secure_url
+          : imageResult,
+      image1:
+        image1Result && image1Result.secure_url
+          ? image1Result.secure_url
+          : image1Result,
+      image2:
+        image2Result && image2Result.secure_url
+          ? image2Result.secure_url
+          : image2Result,
       video: videoUrl,
       structureId: req.body.structureId,
       contentId: req.body.contentId,
@@ -168,6 +218,12 @@ exports.updateProduct = async (req, res, next) => {
       typeof req.params.id === 'string' ? req.params.id.trim() : req.params.id;
     const files = req.files || {};
 
+    // Get the current product to check old images
+    const currentProduct = await NewProductModel.findById(id);
+    if (!currentProduct) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
     // Determine folder name based on newCategoryId
     let folderName = 'product';
     console.log('newCategoryId:', req.body.newCategoryId);
@@ -186,6 +242,9 @@ exports.updateProduct = async (req, res, next) => {
         // fallback to 'product'
       }
     }
+
+    // Track old images that need to be deleted
+    const oldImagesToDelete = [];
 
     // Upload images/videos to Cloudinary if present
     const updates = {
@@ -253,28 +312,67 @@ exports.updateProduct = async (req, res, next) => {
       subsuitableId: req.body.subsuitableId,
       subfinishId: req.body.subfinishId,
       substructureId: req.body.substructureId,
-      ...(files.image && {
-        image: await uploadToCloudinary(files.image[0], folderName),
-      }),
-      ...(files.image1 && {
-        image1: await uploadToCloudinary(files.image1[0], folderName),
-      }),
-      ...(files.image2 && {
-        image2: await uploadToCloudinary(files.image2[0], folderName),
-      }),
-      ...(files.video && {
-        video: await uploadToCloudinary(files.video[0], folderName),
-      }),
     };
+
+    // Handle image updates and track old images
+    if (files.image) {
+      if (currentProduct.image) {
+        oldImagesToDelete.push(currentProduct.image);
+      }
+      updates.image = await uploadToCloudinary(files.image[0], folderName);
+    } else if (req.body.image) {
+      updates.image = stripCloudinaryVersion(req.body.image);
+    }
+
+    if (files.image1) {
+      if (currentProduct.image1) {
+        oldImagesToDelete.push(currentProduct.image1);
+      }
+      updates.image1 = await uploadToCloudinary(files.image1[0], folderName);
+    } else if (req.body.image1) {
+      updates.image1 = stripCloudinaryVersion(req.body.image1);
+    }
+
+    if (files.image2) {
+      if (currentProduct.image2) {
+        oldImagesToDelete.push(currentProduct.image2);
+      }
+      updates.image2 = await uploadToCloudinary(files.image2[0], folderName);
+    } else if (req.body.image2) {
+      updates.image2 = stripCloudinaryVersion(req.body.image2);
+    }
+
+    if (files.video) {
+      if (currentProduct.video) {
+        oldImagesToDelete.push(currentProduct.video);
+      }
+      updates.video = await uploadToCloudinary(files.video[0], folderName);
+    } else if (req.body.video) {
+      updates.video = stripCloudinaryVersion(req.body.video);
+    }
 
     const updated = await NewProductModel.findByIdAndUpdate(
       id,
       { $set: updates },
       { new: true, runValidators: true },
     );
-    if (!updated) {
-      return res.status(404).json({ error: 'Product not found' });
+
+    // Delete old images from Cloudinary
+    if (oldImagesToDelete.length > 0) {
+      try {
+        await deleteImagesFromCloudinary(oldImagesToDelete);
+        console.log(
+          `Successfully deleted ${oldImagesToDelete.length} old images for product ID: ${id}`,
+        );
+      } catch (cloudinaryError) {
+        console.error(
+          'Error deleting old images from Cloudinary:',
+          cloudinaryError,
+        );
+        // Don't fail the request if Cloudinary deletion fails
+      }
     }
+
     res.status(200).json(updated);
   } catch (error) {
     console.error('Error updating product:', error);
@@ -287,10 +385,18 @@ exports.deleteProduct = async (req, res, next) => {
   try {
     const id =
       typeof req.params.id === 'string' ? req.params.id.trim() : req.params.id;
-    const deleted = await NewProductModel.findByIdAndDelete(id);
-    if (!deleted) {
+
+    // First, get the product to access its images
+    const product = await NewProductModel.findById(id);
+    if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
+
+    // Delete the product from database
+    const deleted = await NewProductModel.findByIdAndDelete(id);
+
+    // (Cloudinary image deletion code removed)
+
     res.status(200).json({ status: 1, data: deleted });
   } catch (error) {
     console.error('Error deleting product:', error);

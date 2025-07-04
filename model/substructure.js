@@ -14,14 +14,16 @@ const SubstructureSchema = new Schema(
       required: true,
       validate: {
         validator: async function (value) {
-          const exists = await mongoose.model('StructureData').exists({ _id: value });
+          const exists = await mongoose
+            .model('StructureData')
+            .exists({ _id: value });
           return exists !== null;
         },
         message: 'Invalid structureId: No matching StructureData found',
       },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model('SubstructureData', SubstructureSchema);
