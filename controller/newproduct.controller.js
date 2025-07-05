@@ -9,6 +9,37 @@ function stripCloudinaryVersion(url) {
   return url ? url.replace(/\/v\d+\//, '/') : url;
 }
 
+// Helper to extract video and thumbnail URLs from Cloudinary result
+function extractVideoUrls(videoResult) {
+  let videoUrl = null;
+  let videoThumbnailUrl = null;
+
+  if (videoResult && videoResult.eager && videoResult.eager.length > 0) {
+    // Get the AV1 video URL
+    if (
+      videoResult.eager[0].secure_url &&
+      videoResult.eager[0].secure_url.includes('/vc_av1/')
+    ) {
+      videoUrl = videoResult.eager[0].secure_url;
+    } else if (videoResult.secure_url) {
+      videoUrl = videoResult.secure_url;
+    } else {
+      videoUrl = videoResult;
+    }
+
+    // Get the thumbnail URL (second eager transformation)
+    if (videoResult.eager[1] && videoResult.eager[1].secure_url) {
+      videoThumbnailUrl = videoResult.eager[1].secure_url;
+    }
+  } else if (videoResult && videoResult.secure_url) {
+    videoUrl = videoResult.secure_url;
+  } else {
+    videoUrl = videoResult;
+  }
+
+  return { videoUrl, videoThumbnailUrl };
+}
+
 // Helper to upload a file buffer to Cloudinary and return the URL
 async function uploadToCloudinary(file, folder) {
   if (!file) return null;
@@ -81,21 +112,8 @@ exports.addProduct = async (req, res, next) => {
       ? await uploadToCloudinary(files.video[0], folderName)
       : stripCloudinaryVersion(req.body.video) || null;
 
-    // Always use the AV1 eager transformation URL if available and contains /vc_av1/
-    let videoUrl = null;
-    if (
-      videoResult &&
-      videoResult.eager &&
-      videoResult.eager.length > 0 &&
-      videoResult.eager[0].secure_url &&
-      videoResult.eager[0].secure_url.includes('/vc_av1/')
-    ) {
-      videoUrl = videoResult.eager[0].secure_url;
-    } else if (videoResult && videoResult.secure_url) {
-      videoUrl = videoResult.secure_url;
-    } else {
-      videoUrl = videoResult;
-    }
+    // Extract video and thumbnail URLs
+    const { videoUrl, videoThumbnailUrl } = extractVideoUrls(videoResult);
 
     const payload = {
       sku: req.body.sku,
@@ -119,6 +137,7 @@ exports.addProduct = async (req, res, next) => {
           ? image2Result.secure_url
           : image2Result,
       video: videoUrl,
+      videoThumbnail: videoThumbnailUrl,
       structureId: req.body.structureId,
       contentId: req.body.contentId,
       gsm: req.body.gsm,
@@ -246,7 +265,7 @@ exports.updateProduct = async (req, res, next) => {
     // Track old images that need to be deleted
     const oldImagesToDelete = [];
 
-    // Upload images/videos to Cloudinary if present
+    // Initialize updates object
     const updates = {
       sku: req.body.sku,
       slug: req.body.slug,
@@ -315,11 +334,19 @@ exports.updateProduct = async (req, res, next) => {
     };
 
     // Handle image updates and track old images
+    function getCloudinaryUrl(result) {
+      if (!result) return null;
+      if (typeof result === 'string') return result;
+      if (result.secure_url) return result.secure_url;
+      return null;
+    }
+
     if (files.image) {
       if (currentProduct.image) {
         oldImagesToDelete.push(currentProduct.image);
       }
-      updates.image = await uploadToCloudinary(files.image[0], folderName);
+      const imageResult = await uploadToCloudinary(files.image[0], folderName);
+      updates.image = getCloudinaryUrl(imageResult);
     } else if (req.body.image) {
       updates.image = stripCloudinaryVersion(req.body.image);
     }
@@ -328,7 +355,11 @@ exports.updateProduct = async (req, res, next) => {
       if (currentProduct.image1) {
         oldImagesToDelete.push(currentProduct.image1);
       }
-      updates.image1 = await uploadToCloudinary(files.image1[0], folderName);
+      const image1Result = await uploadToCloudinary(
+        files.image1[0],
+        folderName,
+      );
+      updates.image1 = getCloudinaryUrl(image1Result);
     } else if (req.body.image1) {
       updates.image1 = stripCloudinaryVersion(req.body.image1);
     }
@@ -337,7 +368,11 @@ exports.updateProduct = async (req, res, next) => {
       if (currentProduct.image2) {
         oldImagesToDelete.push(currentProduct.image2);
       }
-      updates.image2 = await uploadToCloudinary(files.image2[0], folderName);
+      const image2Result = await uploadToCloudinary(
+        files.image2[0],
+        folderName,
+      );
+      updates.image2 = getCloudinaryUrl(image2Result);
     } else if (req.body.image2) {
       updates.image2 = stripCloudinaryVersion(req.body.image2);
     }
@@ -347,20 +382,13 @@ exports.updateProduct = async (req, res, next) => {
       if (currentProduct.video) {
         oldImagesToDelete.push(currentProduct.video);
       }
-      const videoResult = await uploadToCloudinary(files.video[0], folderName);
-      if (
-        videoResult &&
-        videoResult.eager &&
-        videoResult.eager.length > 0 &&
-        videoResult.eager[0].secure_url &&
-        videoResult.eager[0].secure_url.includes('/vc_av1/')
-      ) {
-        updates.video = videoResult.eager[0].secure_url;
-      } else if (videoResult && videoResult.secure_url) {
-        updates.video = videoResult.secure_url;
-      } else {
-        updates.video = videoResult;
+      if (currentProduct.videoThumbnail) {
+        oldImagesToDelete.push(currentProduct.videoThumbnail);
       }
+      const videoResult = await uploadToCloudinary(files.video[0], folderName);
+      const { videoUrl, videoThumbnailUrl } = extractVideoUrls(videoResult);
+      updates.video = videoUrl;
+      updates.videoThumbnail = videoThumbnailUrl;
     } else if (req.body.video) {
       updates.video = stripCloudinaryVersion(req.body.video);
     }

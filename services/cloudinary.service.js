@@ -45,6 +45,14 @@ const cloudinaryImageUpload = (
                 format: 'mp4',
                 video_codec: 'av1',
               },
+              {
+                format: 'jpg',
+                width: 400,
+                height: 300,
+                crop: 'thumb',
+                gravity: 'auto',
+                quality: 'auto',
+              },
             ],
             eager_async: false,
           }

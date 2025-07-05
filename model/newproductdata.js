@@ -35,6 +35,7 @@ const NewProductSchema = new Schema(
     image1: { type: String, trim: true },
     image2: { type: String, trim: true },
     video: { type: String, trim: true },
+    videoThumbnail: { type: String, trim: true },
 
     structureId: {
       type: Schema.Types.ObjectId,
