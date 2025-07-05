@@ -28,7 +28,7 @@ const NewProductSchema = new Schema(
             .exists({ _id: value });
           return exists !== null;
         },
-        message: 'Invalid newCategoryId: No matching newcategorydata found',
+        message: 'Invalid newcategoryId: No matching newcategorydata found',
       },
     },
     image: { type: String, trim: true },
