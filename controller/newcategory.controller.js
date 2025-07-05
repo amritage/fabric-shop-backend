@@ -2,8 +2,28 @@ const NewCategoryModel = require('../model/newcategorydata');
 const { cloudinaryServices } = require('../services/cloudinary.service');
 const { deleteImagesFromCloudinary } = require('../utils/cloudinary');
 
-function stripCloudinaryVersion(url) {
-  return url ? url.replace(/\/v\d+\//, '/') : url;
+function stripCloudinaryVersion(rawUrl) {
+  if (!rawUrl) return null;
+
+  // Handle different types of input
+  let url;
+  if (typeof rawUrl === 'string') {
+    url = rawUrl;
+  } else if (rawUrl && typeof rawUrl === 'object') {
+    // If it's a Cloudinary result object, extract the URL
+    url = rawUrl.secure_url || rawUrl.url || rawUrl.public_id || null;
+  } else {
+    // If it's not a string or object, return null
+    return null;
+  }
+
+  // If we still don't have a valid URL, return null
+  if (!url || typeof url !== 'string') {
+    return null;
+  }
+
+  // Strip the version number from Cloudinary URL
+  return url.replace(/\/v\d+\//, '/');
 }
 
 async function uploadToCloudinary(file) {
@@ -16,7 +36,8 @@ async function uploadToCloudinary(file) {
     'category', // Always use 'category' folder
     true, // forceFolder
   );
-  return stripCloudinaryVersion(result.secure_url);
+  const strippedUrl = stripCloudinaryVersion(result.secure_url);
+  return strippedUrl || result.secure_url; // Fallback to original URL if stripping fails
 }
 
 // POST /api/newcategory/addcategory
@@ -25,7 +46,10 @@ exports.addCategory = async (req, res) => {
   if (req.files && req.files.image) {
     imageUrl = await uploadToCloudinary(req.files.image[0]);
   } else if (req.body.image) {
-    imageUrl = stripCloudinaryVersion(req.body.image);
+    const strippedImage = stripCloudinaryVersion(req.body.image);
+    if (strippedImage) {
+      imageUrl = strippedImage;
+    }
   }
 
   try {
@@ -69,7 +93,10 @@ exports.updateCategory = async (req, res) => {
       oldImageUrl = currentCategory.image;
       updateData.image = await uploadToCloudinary(req.files.image[0]);
     } else if (req.body.image) {
-      updateData.image = stripCloudinaryVersion(req.body.image);
+      const strippedImage = stripCloudinaryVersion(req.body.image);
+      if (strippedImage) {
+        updateData.image = strippedImage;
+      }
     }
 
     const updated = await NewCategoryModel.findByIdAndUpdate(

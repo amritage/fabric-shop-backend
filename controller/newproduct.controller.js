@@ -5,8 +5,36 @@ const { deleteImagesFromCloudinary } = require('../utils/cloudinary');
 const slugify = require('slugify');
 const path = require('path');
 
-function stripCloudinaryVersion(url) {
-  return url ? url.replace(/\/v\d+\//, '/') : url;
+function stripCloudinaryVersion(rawUrl) {
+  if (!rawUrl) return null;
+
+  // Debug logging to see what we're receiving
+  console.log('stripCloudinaryVersion input:', rawUrl, typeof rawUrl);
+
+  // Handle different types of input
+  let url;
+  if (typeof rawUrl === 'string') {
+    url = rawUrl;
+  } else if (rawUrl && typeof rawUrl === 'object') {
+    // If it's a Cloudinary result object, extract the URL
+    url = rawUrl.secure_url || rawUrl.url || rawUrl.public_id || null;
+  } else {
+    // If it's not a string or object, return null
+    console.log(
+      'Invalid input type for stripCloudinaryVersion:',
+      typeof rawUrl,
+    );
+    return null;
+  }
+
+  // If we still don't have a valid URL, return null
+  if (!url || typeof url !== 'string') {
+    console.log('No valid URL extracted from input');
+    return null;
+  }
+
+  // Strip the version number from Cloudinary URL
+  return url.replace(/\/v\d+\//, '/');
 }
 
 // Helper to extract video and thumbnail URLs from Cloudinary result
@@ -79,6 +107,15 @@ exports.addProduct = async (req, res, next) => {
   try {
     const files = req.files || {};
 
+    // Debug logging to see what's in the request body
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Image fields in body:', {
+      image: req.body.image,
+      image1: req.body.image1,
+      image2: req.body.image2,
+      video: req.body.video,
+    });
+
     // Determine folder name based on newCategoryId
     let folderName = 'product';
     console.log('newCategoryId:', req.body.newCategoryId);
@@ -101,16 +138,16 @@ exports.addProduct = async (req, res, next) => {
     // Upload images/videos to Cloudinary and store only the URL
     const imageResult = files.image
       ? await uploadToCloudinary(files.image[0], folderName)
-      : stripCloudinaryVersion(req.body.image) || null;
+      : stripCloudinaryVersion(req.body.image);
     const image1Result = files.image1
       ? await uploadToCloudinary(files.image1[0], folderName)
-      : stripCloudinaryVersion(req.body.image1) || null;
+      : stripCloudinaryVersion(req.body.image1);
     const image2Result = files.image2
       ? await uploadToCloudinary(files.image2[0], folderName)
-      : stripCloudinaryVersion(req.body.image2) || null;
+      : stripCloudinaryVersion(req.body.image2);
     const videoResult = files.video
       ? await uploadToCloudinary(files.video[0], folderName)
-      : stripCloudinaryVersion(req.body.video) || null;
+      : stripCloudinaryVersion(req.body.video);
 
     // Extract video and thumbnail URLs
     const { videoUrl, videoThumbnailUrl } = extractVideoUrls(videoResult);
@@ -237,6 +274,15 @@ exports.updateProduct = async (req, res, next) => {
       typeof req.params.id === 'string' ? req.params.id.trim() : req.params.id;
     const files = req.files || {};
 
+    // Debug logging to see what's in the request body
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Image fields in body:', {
+      image: req.body.image,
+      image1: req.body.image1,
+      image2: req.body.image2,
+      video: req.body.video,
+    });
+
     // Get the current product to check old images
     const currentProduct = await NewProductModel.findById(id);
     if (!currentProduct) {
@@ -348,7 +394,10 @@ exports.updateProduct = async (req, res, next) => {
       const imageResult = await uploadToCloudinary(files.image[0], folderName);
       updates.image = getCloudinaryUrl(imageResult);
     } else if (req.body.image) {
-      updates.image = stripCloudinaryVersion(req.body.image);
+      const strippedImage = stripCloudinaryVersion(req.body.image);
+      if (strippedImage) {
+        updates.image = strippedImage;
+      }
     }
 
     if (files.image1) {
@@ -361,7 +410,10 @@ exports.updateProduct = async (req, res, next) => {
       );
       updates.image1 = getCloudinaryUrl(image1Result);
     } else if (req.body.image1) {
-      updates.image1 = stripCloudinaryVersion(req.body.image1);
+      const strippedImage1 = stripCloudinaryVersion(req.body.image1);
+      if (strippedImage1) {
+        updates.image1 = strippedImage1;
+      }
     }
 
     if (files.image2) {
@@ -374,7 +426,10 @@ exports.updateProduct = async (req, res, next) => {
       );
       updates.image2 = getCloudinaryUrl(image2Result);
     } else if (req.body.image2) {
-      updates.image2 = stripCloudinaryVersion(req.body.image2);
+      const strippedImage2 = stripCloudinaryVersion(req.body.image2);
+      if (strippedImage2) {
+        updates.image2 = strippedImage2;
+      }
     }
 
     // Video update: always use AV1 eager transformation URL if available
@@ -390,7 +445,10 @@ exports.updateProduct = async (req, res, next) => {
       updates.video = videoUrl;
       updates.videoThumbnail = videoThumbnailUrl;
     } else if (req.body.video) {
-      updates.video = stripCloudinaryVersion(req.body.video);
+      const strippedVideo = stripCloudinaryVersion(req.body.video);
+      if (strippedVideo) {
+        updates.video = strippedVideo;
+      }
     }
 
     const updated = await NewProductModel.findByIdAndUpdate(
