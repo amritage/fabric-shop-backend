@@ -1,5 +1,6 @@
 const { secret } = require('../config/secret');
-const stripe = require('stripe')(secret.stripe_key);
+const Stripe = require('stripe');
+const stripe = secret.stripe_key ? Stripe(secret.stripe_key) : null;
 const Order = require('../model/Order');
 
 // create-payment-intent
@@ -9,6 +10,9 @@ exports.paymentIntent = async (req, res, next) => {
     const price = Number(product.price);
     const amount = price * 100;
     // Create a PaymentIntent with the order amount and currency
+    if (!stripe) {
+      throw new Error('Stripe key not configured');
+    }
     const paymentIntent = await stripe.paymentIntents.create({
       currency: 'usd',
       amount: amount,
