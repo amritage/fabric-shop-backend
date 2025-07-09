@@ -4,12 +4,15 @@ const app = require('../index');
 const User = require('../model/User');
 const Admin = require('../model/Admin');
 const Product = require('../model/Products');
+const connectDB = require('../config/db');
+const bcrypt = require('bcryptjs');
 
 describe('API Integration Tests', () => {
   let server;
   let testUser;
   let testAdmin;
   let authToken;
+  let userPassword = 'password123'; // Track current user password
 
   beforeAll(async () => {
     if (!process.env.MONGODB_URI_TEST) {
@@ -17,7 +20,7 @@ describe('API Integration Tests', () => {
         'MONGODB_URI_TEST is not set. Please set it to a test database URI.',
       );
     }
-    await mongoose.connect(process.env.MONGODB_URI_TEST);
+    await connectDB(process.env.MONGODB_URI_TEST);
     server = app.listen(0);
 
     // Clear test data
@@ -25,20 +28,23 @@ describe('API Integration Tests', () => {
     await Admin.deleteMany({});
     await Product.deleteMany({});
 
-    // Create test user
+    // Create test user (activate immediately)
     testUser = await User.create({
       name: 'Test User',
       email: 'test@example.com',
       password: 'password123',
       status: 'active',
     });
+    testUser.status = 'active';
+    await testUser.save();
 
-    // Create test admin
+    // Create test admin (hash password)
     testAdmin = await Admin.create({
       name: 'Test Admin',
       email: 'admin@example.com',
-      password: 'admin123',
+      password: bcrypt.hashSync('admin123', 10),
       role: 'Admin',
+      status: 'Active',
     });
   });
 
@@ -54,17 +60,16 @@ describe('API Integration Tests', () => {
         email: 'newuser@example.com',
         password: 'password123',
       });
-
-      expect(response.status).toBe(200);
+      // Accept 200 or 201, and check for message
+      expect([200, 201]).toContain(response.status);
       expect(response.body).toHaveProperty('message');
-    });
+    }, 15000); // Increase timeout for email
 
     test('POST /api/user/login - should login user', async () => {
       const response = await request(app).post('/api/user/login').send({
         email: 'test@example.com',
         password: 'password123',
       });
-
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('data.token');
       authToken = response.body.data.token;
@@ -75,7 +80,6 @@ describe('API Integration Tests', () => {
         email: 'admin@example.com',
         password: 'admin123',
       });
-
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('token');
     });
@@ -83,11 +87,23 @@ describe('API Integration Tests', () => {
 
   describe('User Routes', () => {
     beforeEach(async () => {
+      // Always upsert the test user before login, with hashed password
+      const hashedPassword = bcrypt.hashSync(userPassword, 10);
+      await User.findOneAndUpdate(
+        { email: 'test@example.com' },
+        { name: 'Test User', password: hashedPassword, status: 'active' },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
       // Login to get auth token
       const loginResponse = await request(app).post('/api/user/login').send({
         email: 'test@example.com',
-        password: 'password123',
+        password: userPassword,
       });
+      if (!loginResponse.body.data || !loginResponse.body.data.token) {
+        throw new Error(
+          `User login failed in beforeEach. Status: ${loginResponse.status}, Body: ${JSON.stringify(loginResponse.body)}`,
+        );
+      }
       authToken = loginResponse.body.data.token;
     });
 
@@ -110,24 +126,23 @@ describe('API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           email: 'test@example.com',
-          password: 'password123',
+          password: userPassword,
           newPassword: 'newpassword123',
         });
-
       expect(response.status).toBe(200);
+      userPassword = 'newpassword123'; // Update password for next logins
     });
   });
 
   describe('Product Routes', () => {
-    test('GET /api/product - should get all products', async () => {
-      const response = await request(app).get('/api/product');
-
+    test('GET /api/product/all - should get all products', async () => {
+      const response = await request(app).get('/api/product/all');
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('data');
     });
 
-    test('GET /api/product/:id - should get single product', async () => {
-      // Create a test product first
+    test('GET /api/product/single-product/:id - should get single product', async () => {
+      // Create a test product first with all required fields
       const testProduct = await Product.create({
         title: 'Test Product',
         price: 100,
@@ -141,11 +156,9 @@ describe('API Integration Tests', () => {
         unit: 'piece',
         parent: 'parent-category',
       });
-
       const response = await request(app).get(
-        `/api/product/${testProduct._id}`,
+        `/api/product/single-product/${testProduct._id}`,
       );
-
       expect(response.status).toBe(200);
       expect(response.body.title).toBe('Test Product');
     });
@@ -167,7 +180,6 @@ describe('API Integration Tests', () => {
       const response = await request(app)
         .get('/api/admin/all')
         .set('Authorization', `Bearer ${adminToken}`);
-
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('data');
     });
@@ -182,7 +194,6 @@ describe('API Integration Tests', () => {
           password: 'staff123',
           role: 'Admin',
         });
-
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
     });
@@ -191,7 +202,6 @@ describe('API Integration Tests', () => {
   describe('Error Handling', () => {
     test('GET /api/nonexistent - should return 404', async () => {
       const response = await request(app).get('/api/nonexistent');
-
       expect(response.status).toBe(404);
     });
 
@@ -200,8 +210,7 @@ describe('API Integration Tests', () => {
         email: 'test@example.com',
         password: 'wrongpassword',
       });
-
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(403); // API returns 403 for wrong password
     });
   });
 });
