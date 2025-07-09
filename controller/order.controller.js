@@ -3,15 +3,20 @@ let stripe;
 if (secret.stripe_key) {
   stripe = require('stripe')(secret.stripe_key);
 } else {
-  throw new Error(
+  // eslint-disable-next-line no-console
+  console.warn(
     'Stripe is not configured: STRIPE_KEY is missing in environment variables.',
   );
+  stripe = null;
 }
 const Order = require('../model/Order');
 
 // create-payment-intent
 exports.paymentIntent = async (req, res, next) => {
   try {
+    if (!stripe) {
+      throw new Error('Stripe is not configured');
+    }
     const product = req.body;
     const price = Number(product.price);
     const amount = price * 100;
