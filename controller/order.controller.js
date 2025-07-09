@@ -1,5 +1,12 @@
 const { secret } = require('../config/secret');
-const stripe = require('stripe')(secret.stripe_key);
+let stripe;
+if (secret.stripe_key) {
+  stripe = require('stripe')(secret.stripe_key);
+} else {
+  throw new Error(
+    'Stripe is not configured: STRIPE_KEY is missing in environment variables.',
+  );
+}
 const Order = require('../model/Order');
 
 // create-payment-intent
