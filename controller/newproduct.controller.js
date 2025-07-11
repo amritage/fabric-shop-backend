@@ -984,3 +984,19 @@ exports.getTopRatedProducts = async (req, res) => {
       .json({ status: 0, message: 'Error fetching top-rated products' });
   }
 };
+// GET PRODUCT BY SLUG
+exports.getProductBySlug = async (req, res, next) => {
+  const { slug } = req.params;
+  try {
+    const product = await NewProductModel.findOne({ slug });
+
+    if (!product) {
+      return res.status(404).json({ status: 0, message: 'Product not found' });
+    }
+
+    res.status(200).json({ status: 1, data: product });
+  } catch (error) {
+    console.error('Error fetching product by slug:', error);
+    next(error);
+  }
+};

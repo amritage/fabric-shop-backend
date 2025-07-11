@@ -87,4 +87,10 @@ router.get('/popular', newProductController.getPopularProducts);
 router.get('/offers', newProductController.getProductOffers);
 router.get('/toprated', newProductController.getTopRatedProducts);
 
+
+
+// Get product by slug
+router.get('/slug/:slug', newProductController.getProductBySlug);
+
+
 module.exports = router;
