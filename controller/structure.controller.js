@@ -48,12 +48,25 @@ exports.deleteStructure = async (req, res) => {
   const id = req.params.id.trim();
   try {
     const NewProductModel = require('../model/newproductdata');
+    const Substructure = require('../model/substructure');
     const associatedProducts = await NewProductModel.find({ structureId: id });
     if (associatedProducts.length > 0) {
       return res.status(400).json({
         error: 'This structure is already in use and cannot be deleted',
         inUse: true,
         productCount: associatedProducts.length,
+      });
+    }
+    // Check for references in substructure
+    const associatedSubstructures = await Substructure.find({
+      structureId: id,
+    });
+    if (associatedSubstructures.length > 0) {
+      return res.status(400).json({
+        error:
+          'This structure is already in use in substructure and cannot be deleted',
+        inUse: true,
+        substructureCount: associatedSubstructures.length,
       });
     }
     const deleted = await Structure.findByIdAndDelete(id);

@@ -48,12 +48,23 @@ exports.deleteFinish = async (req, res) => {
     typeof req.params.id === 'string' ? req.params.id.trim() : req.params.id;
   try {
     const NewProductModel = require('../model/newproductdata');
+    const Subfinish = require('../model/subfinish');
     const associatedProducts = await NewProductModel.find({ finishId: id });
     if (associatedProducts.length > 0) {
       return res.status(400).json({
         error: 'This finish is already in use and cannot be deleted',
         inUse: true,
         productCount: associatedProducts.length,
+      });
+    }
+    // Check for references in subfinish
+    const associatedSubfinishes = await Subfinish.find({ finishId: id });
+    if (associatedSubfinishes.length > 0) {
+      return res.status(400).json({
+        error:
+          'This finish is already in use in subfinish and cannot be deleted',
+        inUse: true,
+        subfinishCount: associatedSubfinishes.length,
       });
     }
     const deleted = await Finish.findByIdAndDelete(id);

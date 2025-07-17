@@ -48,6 +48,7 @@ exports.deleteSuitablefor = async (req, res) => {
     typeof req.params.id === 'string' ? req.params.id.trim() : req.params.id;
   try {
     const NewProductModel = require('../model/newproductdata');
+    const Subsuitable = require('../model/subsuitable');
     const associatedProducts = await NewProductModel.find({
       suitableforId: id,
     });
@@ -56,6 +57,18 @@ exports.deleteSuitablefor = async (req, res) => {
         error: 'This suitablefor is already in use and cannot be deleted',
         inUse: true,
         productCount: associatedProducts.length,
+      });
+    }
+    // Check for references in subsuitable
+    const associatedSubsuitables = await Subsuitable.find({
+      suitableforId: id,
+    });
+    if (associatedSubsuitables.length > 0) {
+      return res.status(400).json({
+        error:
+          'This suitablefor is already in use in subsuitable and cannot be deleted',
+        inUse: true,
+        subsuitableCount: associatedSubsuitables.length,
       });
     }
     const deleted = await Suitablefor.findByIdAndDelete(id);
