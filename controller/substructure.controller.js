@@ -51,6 +51,17 @@ exports.updateSubstructure = async (req, res) => {
 exports.deleteSubstructure = async (req, res) => {
   const id = req.params.id.trim();
   try {
+    const NewProductModel = require('../model/newproductdata');
+    const associatedProducts = await NewProductModel.find({
+      substructureId: id,
+    });
+    if (associatedProducts.length > 0) {
+      return res.status(400).json({
+        error: 'This substructure is already in use and cannot be deleted',
+        inUse: true,
+        productCount: associatedProducts.length,
+      });
+    }
     const deleted = await Substructure.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ error: 'Not found' });
     res.json({ status: 1, data: deleted });

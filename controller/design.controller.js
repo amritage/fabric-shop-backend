@@ -60,6 +60,15 @@ exports.updateDesign = async (req, res) => {
 exports.deleteDesign = async (req, res) => {
   const id = req.params.id.trim();
   try {
+    const NewProductModel = require('../model/newproductdata');
+    const associatedProducts = await NewProductModel.find({ designId: id });
+    if (associatedProducts.length > 0) {
+      return res.status(400).json({
+        error: 'This design is already in use and cannot be deleted',
+        inUse: true,
+        productCount: associatedProducts.length,
+      });
+    }
     const deleted = await Design.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ error: 'Not found' });
     res.json({ status: 1, data: deleted });

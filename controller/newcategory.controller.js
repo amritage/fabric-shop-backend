@@ -141,6 +141,14 @@ exports.deleteCategory = async (req, res) => {
       newCategoryId: id,
     });
 
+    if (associatedProducts.length > 0) {
+      return res.status(400).json({
+        error: 'This category is already in use and cannot be deleted',
+        inUse: true,
+        productCount: associatedProducts.length,
+      });
+    }
+
     // Delete the category from database
     await NewCategoryModel.findByIdAndDelete(id);
 
@@ -148,7 +156,7 @@ exports.deleteCategory = async (req, res) => {
       msg: 'deleted successfully',
       status: 1,
       deletedCategory: true,
-      deletedProductImages: associatedProducts.length,
+      deletedProductImages: 0,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

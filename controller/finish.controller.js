@@ -47,6 +47,15 @@ exports.deleteFinish = async (req, res) => {
   const id =
     typeof req.params.id === 'string' ? req.params.id.trim() : req.params.id;
   try {
+    const NewProductModel = require('../model/newproductdata');
+    const associatedProducts = await NewProductModel.find({ finishId: id });
+    if (associatedProducts.length > 0) {
+      return res.status(400).json({
+        error: 'This finish is already in use and cannot be deleted',
+        inUse: true,
+        productCount: associatedProducts.length,
+      });
+    }
     const deleted = await Finish.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ error: 'Not found' });
     res.json({ status: 1, data: deleted });

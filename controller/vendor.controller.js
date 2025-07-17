@@ -45,6 +45,15 @@ exports.updateVendor = async (req, res) => {
 exports.deleteVendor = async (req, res) => {
   const id = req.params.id.trim();
   try {
+    const NewProductModel = require('../model/newproductdata');
+    const associatedProducts = await NewProductModel.find({ vendorId: id });
+    if (associatedProducts.length > 0) {
+      return res.status(400).json({
+        error: 'This vendor is already in use and cannot be deleted',
+        inUse: true,
+        productCount: associatedProducts.length,
+      });
+    }
     const deleted = await Vendor.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ error: 'Not found' });
     res.json({ status: 1, data: deleted });

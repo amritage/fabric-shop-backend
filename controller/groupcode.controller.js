@@ -51,6 +51,17 @@ exports.updateGroupCode = async (req, res) => {
 // DELETE
 exports.deleteGroupCode = async (req, res) => {
   try {
+    const NewProductModel = require('../model/newproductdata');
+    const associatedProducts = await NewProductModel.find({
+      groupcodeId: req.params.id.trim(),
+    });
+    if (associatedProducts.length > 0) {
+      return res.status(400).json({
+        error: 'This group code is already in use and cannot be deleted',
+        inUse: true,
+        productCount: associatedProducts.length,
+      });
+    }
     const deleted = await GroupCode.findByIdAndDelete(req.params.id.trim());
     if (!deleted)
       return res.status(404).json({ status: 0, message: 'Not found' });
