@@ -319,6 +319,21 @@ const NewProductSchema = new Schema(
       unique: true,
       trim: true,
     },
+    // --- SEO/Meta Extensions ---
+    openGraph: {
+      images: [{ type: String, trim: true }], // Array of image URLs
+      video: { type: String, trim: true }, // Video URL
+    },
+    twitter: {
+      image: { type: String, trim: true },
+      player: { type: String, trim: true },
+      player_width: { type: Number },
+      player_height: { type: Number },
+    },
+    VideoJsonLd: { type: Object }, // JSON-LD object for video
+    LogoJsonLd: { type: Object }, // JSON-LD object for logo
+    BreadcrumbJsonLd: { type: Object }, // JSON-LD object for breadcrumb
+    LocalBusinessJsonLd: { type: Object }, // JSON-LD object for local business
   },
   {
     timestamps: { createdAt: 'published_at', updatedAt: 'updated_at' },

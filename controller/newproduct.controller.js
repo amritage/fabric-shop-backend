@@ -231,6 +231,37 @@ exports.addProduct = async (req, res, next) => {
       subsuitableId: req.body.subsuitableId,
       subfinishId: req.body.subfinishId,
       substructureId: req.body.substructureId,
+      // --- SEO/Meta Extensions ---
+      openGraph: {
+        images: req.body.openGraph_images
+          ? Array.isArray(req.body.openGraph_images)
+            ? req.body.openGraph_images
+            : [req.body.openGraph_images]
+          : [],
+        video: req.body.openGraph_video || '',
+      },
+      twitter: {
+        image: req.body.twitter_image || '',
+        player: req.body.twitter_player || '',
+        player_width: req.body.twitter_player_width
+          ? Number(req.body.twitter_player_width)
+          : undefined,
+        player_height: req.body.twitter_player_height
+          ? Number(req.body.twitter_player_height)
+          : undefined,
+      },
+      VideoJsonLd: req.body.VideoJsonLd
+        ? JSON.parse(req.body.VideoJsonLd)
+        : undefined,
+      LogoJsonLd: req.body.LogoJsonLd
+        ? JSON.parse(req.body.LogoJsonLd)
+        : undefined,
+      BreadcrumbJsonLd: req.body.BreadcrumbJsonLd
+        ? JSON.parse(req.body.BreadcrumbJsonLd)
+        : undefined,
+      LocalBusinessJsonLd: req.body.LocalBusinessJsonLd
+        ? JSON.parse(req.body.LocalBusinessJsonLd)
+        : undefined,
     };
 
     const product = await NewProductModel.create(payload);
@@ -377,6 +408,37 @@ exports.updateProduct = async (req, res, next) => {
       subsuitableId: req.body.subsuitableId,
       subfinishId: req.body.subfinishId,
       substructureId: req.body.substructureId,
+      // --- SEO/Meta Extensions ---
+      openGraph: {
+        images: req.body.openGraph_images
+          ? Array.isArray(req.body.openGraph_images)
+            ? req.body.openGraph_images
+            : [req.body.openGraph_images]
+          : [],
+        video: req.body.openGraph_video || '',
+      },
+      twitter: {
+        image: req.body.twitter_image || '',
+        player: req.body.twitter_player || '',
+        player_width: req.body.twitter_player_width
+          ? Number(req.body.twitter_player_width)
+          : undefined,
+        player_height: req.body.twitter_player_height
+          ? Number(req.body.twitter_player_height)
+          : undefined,
+      },
+      VideoJsonLd: req.body.VideoJsonLd
+        ? JSON.parse(req.body.VideoJsonLd)
+        : undefined,
+      LogoJsonLd: req.body.LogoJsonLd
+        ? JSON.parse(req.body.LogoJsonLd)
+        : undefined,
+      BreadcrumbJsonLd: req.body.BreadcrumbJsonLd
+        ? JSON.parse(req.body.BreadcrumbJsonLd)
+        : undefined,
+      LocalBusinessJsonLd: req.body.LocalBusinessJsonLd
+        ? JSON.parse(req.body.LocalBusinessJsonLd)
+        : undefined,
     };
 
     // Handle image updates and track old images
