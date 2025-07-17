@@ -57,7 +57,7 @@ const cloudinaryImageUpload = (
             eager_async: false,
           }
         : {
-            format: 'avif',
+            format: 'webp',
             transformation: [
               { width: 800, height: 800, crop: 'limit' },
               { fetch_format: 'auto', quality: 'auto' },

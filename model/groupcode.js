@@ -8,6 +8,16 @@ const GroupCodeSchema = new mongoose.Schema(
       trim: true,
       unique: true,
     },
+    image: {
+      type: String,
+      required: false,
+      
+    },
+    video: {
+      type: String,
+      required: false,
+      
+    },
   },
   { timestamps: true },
 );

@@ -52,11 +52,7 @@ const uploader = multer({
     }
   },
   limits: {
-    fileSize: (req, file, cb) => {
-      // This function is not supported by multer, so we handle size in fileFilter
-      // Instead, we will check size after upload in the controller if needed
-      return undefined;
-    },
+    fileSize: Math.max(IMAGE_SIZE_LIMIT, VIDEO_SIZE_LIMIT), // Set a reasonable max file size
   },
 });
 
